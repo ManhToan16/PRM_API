@@ -200,5 +200,35 @@ namespace PRM_API.Controllers
         {
             return (_context.Users?.Any(e => e.Id == id)).GetValueOrDefault();
         }
+        [HttpPut("resetPassword")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
+        {
+            if (_context.Users == null)
+            {
+                return NotFound();
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == resetPasswordDto.Email);
+            if (user == null)
+            {
+                return NotFound(new { message = "Email không tồn tại" });
+            }
+
+            // Cập nhật mật khẩu mới
+            user.Password = resetPasswordDto.NewPassword; // Bạn có thể thêm hash mật khẩu tại đây nếu cần
+            _context.Entry(user).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return StatusCode(500, "Lỗi khi cập nhật mật khẩu");
+            }
+
+            return Ok(new { message = "Cập nhật mật khẩu thành công" });
+        }
+
     }
 }
