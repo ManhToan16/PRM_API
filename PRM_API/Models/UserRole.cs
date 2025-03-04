@@ -13,5 +13,6 @@ namespace PRM_API.Models
 
         public virtual Setting Setting { get; set; } = null!;
         public virtual User User { get; set; } = null!;
+
     }
 }

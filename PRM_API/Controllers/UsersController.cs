@@ -1,10 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using PRM_API.DTO;
 using PRM_API.Models;
 
@@ -15,10 +20,12 @@ namespace PRM_API.Controllers
     public class UsersController : ControllerBase
     {
         private readonly TriolingoDatabaseContext _context;
-
-        public UsersController(TriolingoDatabaseContext context)
+        private readonly IConfiguration _configuration;
+        public UsersController(TriolingoDatabaseContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
+
         }
 
         // GET: api/Users
@@ -111,7 +118,10 @@ namespace PRM_API.Controllers
             {
                 return NotFound();
             }
+            var token = GenerateJwtToken(user);
+            return Ok(new { Token = token });
             return user;
+
         }
 
         // Get user by email
@@ -175,7 +185,7 @@ namespace PRM_API.Controllers
 
             return CreatedAtAction("GetUser", new { id = user.Id }, user);
         }
-
+   
         // DELETE: api/Users/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -228,6 +238,46 @@ namespace PRM_API.Controllers
             }
 
             return Ok(new { message = "Cập nhật mật khẩu thành công" });
+        }
+        private string GenerateJwtToken(User user)
+        {
+            // Lấy thông tin UserRole của người dùng
+            var userRole = _context.UserRoles.Include(ur => ur.User).Include(ur => ur.Setting).FirstOrDefault(ur=>ur.UserId==user.Id); 
+
+            if (userRole == null)
+            {
+                throw new Exception("User does not have any role assigned.");
+            }
+
+            // Tạo danh sách các claims cho JWT
+            var claims = new List<Claim>
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, user.Email), // Email của người dùng
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Mã token
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), // UserId
+        new Claim("UserId", user.Id.ToString()) // Thêm claim UserId
+    };
+
+            // Xác định RoleType và thêm vào claims
+            var role = userRole.RoleType == 1 ? "Admin" : (userRole.RoleType == 2 ? "Staff" : "User");
+
+            // Thêm claim Role vào JWT token
+            claims.Add(new Claim(ClaimTypes.Role, role));
+
+            // Tạo khóa bảo mật từ cấu hình
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            // Tạo JWT token
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddDays(1), // Token hết hạn sau 1 ngày
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
     }
