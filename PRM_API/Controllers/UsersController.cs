@@ -114,13 +114,31 @@ namespace PRM_API.Controllers
                 return NotFound();
             }
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email && u.Password == loginRequest.Password);
+            var userRole = _context.UserRoles.Include(ur => ur.User).Include(ur => ur.Setting).FirstOrDefault(ur => ur.UserId == user.Id);
             if (user == null)
             {
                 return NotFound();
             }
             var token = GenerateJwtToken(user);
-            return Ok(new { Token = token });
-            return user;
+            var userDTO = new UsersDTO
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                Email = user.Email,
+                Password = user.Password,
+                AvatarUrl = user.AvatarUrl,
+                Status = user.Status,
+                Note = user.Note,
+                RoleType = userRole.RoleType
+
+
+            };
+            var response = new TokenResponseDTO
+            {
+                Token = token,
+                user = userDTO
+            };
+            return Ok(response);
 
         }
 
@@ -176,16 +194,30 @@ namespace PRM_API.Controllers
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)
         {
-          if (_context.Users == null)
-          {
-              return Problem("Entity set 'TriolingoDatabaseContext.Users'  is null.");
-          }
+            if (_context.Users == null)
+            {
+                return Problem("Entity set 'TriolingoDatabaseContext.Users' is null.");
+            }
+
+            // Thêm user vào database
             _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            // Tạo UserRole với SettingId = 4 và RoleType = 2
+            var userRole = new UserRole
+            {
+                UserId = user.Id,  // Lấy Id user vừa tạo
+                SettingId = 4,
+                RoleType = 2,
+                Note = "Students"
+            };
+
+            _context.UserRoles.Add(userRole);
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetUser", new { id = user.Id }, user);
         }
-   
+
         // DELETE: api/Users/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
