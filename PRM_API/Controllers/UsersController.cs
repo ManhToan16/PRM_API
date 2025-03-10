@@ -58,7 +58,52 @@ namespace PRM_API.Controllers
 
             return user;
         }
+        [HttpGet("account-info/{id}")]
+        public async Task<ActionResult<UserRoleSettingDTO>> GetAccountInfo(int id)
+        {
+            if (_context.Users == null)
+            {
+                return NotFound();
+            }
+            var user = await _context.Users.FindAsync(id);
 
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            int coursesNum = await _context.StudentCourses.Where(sc => sc.StudentId == id).CountAsync();
+            var studentCourseIds = await _context.StudentCourses
+                                    .Where(sc => sc.StudentId == id)
+                                    .Select(sc => sc.Id)
+                                    .ToListAsync();
+
+            // Then, calculate the total points (sum of marks) for those StudentCourse IDs
+            int totalPoints = (int)await _context.StudentLessons
+                                          .Where(sl => studentCourseIds.Contains(sl.StudentCourseId))
+                                          .SumAsync(sl => sl.Mark);
+            var userRole = _context.UserRoles.Include(ur => ur.Setting).FirstOrDefault(ur => ur.UserId == id);
+            if (userRole?.Setting == null)
+            {
+                return NotFound();
+            }
+            UserRoleSettingDTO studentInfo = new()
+            {
+                Id = id,
+                AvatarUrl = user.AvatarUrl,
+                Email = user.Email,
+                FullName = user.FullName,
+                Note = user.Note,
+                Status = user.Status,
+                CoursesNumber = coursesNum,
+                TotalPoint = totalPoints,
+                SettingName = userRole.Setting.Name,
+                SettingID = userRole.SettingId
+            };
+
+
+            return studentInfo;
+        }
         // GET: api/Users/5
         [HttpGet("student-info/{id}")]
         public async Task<ActionResult<StudentInfoDto>> GetStudentInfo(int id)
