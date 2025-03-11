@@ -119,23 +119,19 @@ namespace PRM_API.Controllers
                 return NotFound();
             }
 
-            // Kiểm tra xem UserRole của người dùng có tồn tại hay không
             var userRole = await _context.UserRoles.Include(ur => ur.Setting).FirstOrDefaultAsync(ur => ur.UserId == id);
             if (userRole == null)
             {
                 return NotFound("UserRole not found.");
             }
 
-            // Kiểm tra xem Setting của UserRole có tồn tại hay không
             if (userRole.Setting == null)
             {
                 return NotFound("Setting for UserRole not found.");
             }
 
-            // Cập nhật SettingId từ DTO
             userRole.SettingId = updateSetting.SettingId;
 
-            // Lưu thay đổi vào cơ sở dữ liệu
             await _context.SaveChangesAsync();
 
             return NoContent();

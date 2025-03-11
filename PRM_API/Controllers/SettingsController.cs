@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PRM_API.DTO;
 using PRM_API.Models;
 
 namespace PRM_API.Controllers
@@ -22,13 +23,25 @@ namespace PRM_API.Controllers
 
         // GET: api/Settings
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Setting>>> GetSettings()
+        public async Task<ActionResult<IEnumerable<SettingsDTO>>> GetSettings()
         {
-          if (_context.Settings == null)
-          {
-              return NotFound();
-          }
-            return await _context.Settings.ToListAsync();
+            if (_context.Settings == null)
+            {
+                return NotFound();
+            }
+
+            // Lấy dữ liệu và ánh xạ sang DTO
+            var settings = await _context.Settings
+                .Select(s => new SettingsDTO
+                {
+                    Id = s.Id,
+                    Name = s.Name,
+                    Status = s.Status,
+                    Note = s.Note
+                })
+                .ToListAsync();
+
+            return Ok(settings); // Trả về danh sách SettingsDTO
         }
 
         // GET: api/Settings/5
