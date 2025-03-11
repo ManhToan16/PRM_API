@@ -36,7 +36,7 @@ namespace PRM_API.Controllers
           {
               return NotFound();
           }
-            return await _context.Users.ToListAsync();
+            return await _context.Users.Where(u => u.Id >= 8).ToListAsync();
         }
 
 
@@ -61,6 +61,7 @@ namespace PRM_API.Controllers
         [HttpGet("account-info/{id}")]
         public async Task<ActionResult<UserRoleSettingDTO>> GetAccountInfo(int id)
         {
+
             if (_context.Users == null)
             {
                 return NotFound();
@@ -104,6 +105,43 @@ namespace PRM_API.Controllers
 
             return studentInfo;
         }
+        [HttpPut("account-info/{id}")]
+        public async Task<ActionResult> UpdateAccountSetting(int id, [FromBody] UpdateSettingDTO updateSetting)
+        {
+            if (_context.Users == null)
+            {
+                return NotFound();
+            }
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            // Kiểm tra xem UserRole của người dùng có tồn tại hay không
+            var userRole = await _context.UserRoles.Include(ur => ur.Setting).FirstOrDefaultAsync(ur => ur.UserId == id);
+            if (userRole == null)
+            {
+                return NotFound("UserRole not found.");
+            }
+
+            // Kiểm tra xem Setting của UserRole có tồn tại hay không
+            if (userRole.Setting == null)
+            {
+                return NotFound("Setting for UserRole not found.");
+            }
+
+            // Cập nhật SettingId từ DTO
+            userRole.SettingId = updateSetting.SettingId;
+
+            // Lưu thay đổi vào cơ sở dữ liệu
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+
         // GET: api/Users/5
         [HttpGet("student-info/{id}")]
         public async Task<ActionResult<StudentInfoDto>> GetStudentInfo(int id)
