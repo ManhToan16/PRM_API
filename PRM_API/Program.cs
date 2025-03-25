@@ -79,11 +79,23 @@ namespace PRM_API
                 options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
                 options.AddPolicy("UserOnly", policy => policy.RequireRole("User"));
             });
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll",
+                    builder =>
+                    {
+                        builder.AllowAnyOrigin()
+                               .AllowAnyMethod()
+                               .AllowAnyHeader();
+                    });
+            });
+
             var app = builder.Build();
 
 
             app.UseSwagger();
             app.UseSwaggerUI();
+            app.UseCors("AllowAll");
             app.UseAuthentication();
             app.UseAuthorization();
 
