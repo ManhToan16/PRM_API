@@ -1,6 +1,5 @@
 ﻿# Base image for runtime
 FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
-USER app
 WORKDIR /app
 EXPOSE 80
 
