@@ -87,12 +87,49 @@ namespace PRM_API.Controllers
         {
             if (_context.Units == null)
             {
-                return Problem("Entity set 'TriolingoDatabaseContext.Units'  is null.");
+                return Problem("Entity set 'TriolingoDatabaseContext.Units' is null.");
             }
-            _context.Units.Add(unit);
-            await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetUnit", new { id = unit.Id }, unit);
+            try
+            {
+                if (string.IsNullOrEmpty(unit.Name) || string.IsNullOrEmpty(unit.Description))
+                {
+                    return BadRequest("Name và Description là bắt buộc");
+                }
+
+                if (!_context.Courses.Any(c => c.Id == unit.CourseId))
+                {
+                    return BadRequest($"CourseId {unit.CourseId} không tồn tại");
+                }
+
+                if (_context.Units.Any(u => u.Name == unit.Name && u.CourseId == unit.CourseId))
+                {
+                    return BadRequest($"Unit với tên '{unit.Name}' đã tồn tại trong khóa học này");
+                }
+
+                Console.WriteLine($"Received Unit: Id={unit.Id}, Name={unit.Name}, CourseId={unit.CourseId}, Course={unit.Course?.Id}");
+
+                unit.Course = null;
+
+                _context.Units.Add(unit);
+                await _context.SaveChangesAsync();
+
+                // Làm mới context để đảm bảo dữ liệu được đồng bộ
+                await _context.Entry(unit).ReloadAsync();
+
+                return CreatedAtAction("GetUnit", new { id = unit.Id }, unit);
+            }
+            catch (DbUpdateException ex)
+            {
+                var innerException = ex.InnerException?.Message ?? ex.Message;
+                Console.WriteLine($"DbUpdateException: {innerException}");
+                return BadRequest($"Lỗi khi thêm unit: {innerException}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception: {ex.Message}");
+                return BadRequest($"Lỗi khi thêm unit: {ex.Message}");
+            }
         }
 
         // DELETE: api/Units/5
@@ -119,7 +156,6 @@ namespace PRM_API.Controllers
         {
             return (_context.Units?.Any(e => e.Id == id)).GetValueOrDefault();
         }
-
         [HttpGet("getListUnitByCourseId")]
         public async Task<ActionResult<IEnumerable<Unit>>> GetListUnitByCourseId(int courseId)
         {
@@ -127,17 +163,44 @@ namespace PRM_API.Controllers
             {
                 return NotFound();
             }
-            if (courseId != 0)
+
+            // Kiểm tra vai trò người dùng (giả định bạn có cách lấy vai trò từ token)
+            var userRole = User.Claims.FirstOrDefault(c => c.Type == "role")?.Value; // Ví dụ: "Admin" hoặc "Student"
+
+            IQueryable<Unit> unitsQuery = _context.Units
+                .Where(u => courseId != 0 ? u.CourseId == courseId : true)
+                .Include(u => u.Lessons);
+
+            // Nếu là student, chỉ lấy unit có Status > 0
+            if (userRole == "Student")
             {
-                return await _context.Units
-                .Where(u => u.CourseId == courseId && u.Status > 0)
-                .ToListAsync();
+                unitsQuery = unitsQuery.Where(u => u.Status > 0);
             }
-            return await _context.Units
-                .Where(u => u.Status > 0)
-                .ToListAsync();
+            // Nếu là admin, lấy tất cả unit (bất kể Status)
 
+            var units = await unitsQuery.ToListAsync();
 
+            // Log dữ liệu trả về
+            Console.WriteLine($"Units returned for CourseId {courseId}: {units.Count} units");
+            foreach (var unit in units)
+            {
+                Console.WriteLine($"Unit: Id={unit.Id}, Name={unit.Name}, Status={unit.Status}");
+            }
+
+            return units;
+        }
+
+        [HttpGet("getLessonsCountByUnitId/{unitId}")]
+        public async Task<ActionResult<int>> GetLessonsCountByUnitId(int unitId)
+        {
+            if (_context.Units == null || _context.Lessons == null)
+            {
+                return NotFound();
+            }
+            var count = await _context.Lessons
+                .Where(l => l.UnitId == unitId)
+                .CountAsync();
+            return count;
         }
     }
 }
