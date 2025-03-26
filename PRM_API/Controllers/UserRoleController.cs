@@ -102,16 +102,24 @@ namespace PRM_API.Controllers
         }
 
         // GET: api/UserRole/GetRoleByUserId/{userId}
+        
         [HttpGet("GetRoleByUserId/{userId}")]
-        public ActionResult<IEnumerable<UserRole>> GetRoleByUserId(int userId)
+        public IActionResult GetRoleByUserId(int userId)
         {
-            var userRoles = _context.UserRoles.Where(ur => ur.UserId == userId).Include(ur => ur.Setting).ToList();
-            if (userRoles == null || !userRoles.Any())
+            var roles = _context.UserRoles
+                                .Include(ur => ur.Setting) // Load dữ liệu từ bảng Setting
+                                .Where(ur => ur.UserId == userId)
+                                .Select(ur => ur.Setting.Name) // Lấy tên quyền từ Setting
+                                .ToList();
+
+            if (roles.Count == 0)
             {
-                return NotFound();
+                return NotFound("User chưa được phân quyền");
             }
 
-            return Ok(userRoles);
+            return Ok(roles);
         }
+
+
     }
 }
