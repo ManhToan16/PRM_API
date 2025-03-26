@@ -106,7 +106,7 @@ namespace PRM_API.Controllers
             return studentInfo;
         }
         [HttpPut("account-info/{id}")]
-        public async Task<ActionResult> UpdateAccountSetting(int id, [FromBody] UpdateSettingDTO updateSetting)
+        public async Task<ActionResult> UpdateAccountSetting(int id,UpdateSettingDTO updateSetting)
         {
             if (_context.Users == null)
             {
@@ -132,9 +132,22 @@ namespace PRM_API.Controllers
 
             userRole.SettingId = updateSetting.SettingId;
 
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!UserExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            return Ok(updateSetting);
         }
 
 
@@ -314,7 +327,7 @@ namespace PRM_API.Controllers
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(id);
         }
 
         private bool UserExists(int id)

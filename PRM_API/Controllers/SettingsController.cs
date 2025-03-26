@@ -23,7 +23,7 @@ namespace PRM_API.Controllers
 
         // GET: api/Settings
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<SettingsDTO>>> GetSettings()
+        public async Task<ActionResult<SettingsDTO>> GetSettings()
         {
             if (_context.Settings == null)
             {
@@ -37,7 +37,28 @@ namespace PRM_API.Controllers
                     Id = s.Id,
                     Name = s.Name,
                     Status = s.Status,
-                    Note = s.Note
+             
+                })
+                .ToListAsync();
+
+            return Ok(settings); // Trả về danh sách SettingsDTO
+        }
+        [HttpGet("GetRoles")]
+        public async Task<ActionResult<SettingsDTO>> GetRoles()
+        {
+            if (_context.Settings == null)
+            {
+                return NotFound();
+            }
+
+            // Lấy dữ liệu và ánh xạ sang DTO
+            var settings = await _context.Settings.Where(s => s.Id == 2 || s.Id == 3 || s.Id == 4)
+                .Select(s => new SettingsDTO
+                {
+                    Id = s.Id,
+                    Name = s.Name,
+                    Status = s.Status,
+
                 })
                 .ToListAsync();
 
@@ -90,7 +111,7 @@ namespace PRM_API.Controllers
                 }
             }
 
-            return NoContent();
+            return Ok(id);
         }
 
         // POST: api/Settings
