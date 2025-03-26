@@ -50,6 +50,19 @@ namespace PRM_API.Controllers
             return studentCourse;
         }
 
+        [HttpGet("studentsCountByCourseId/{courseId}")]
+        public async Task<ActionResult<int>> GetStudentsCountByCourseId(int courseId)
+        {
+            if (_context.StudentCourses == null)
+            {
+                return NotFound();
+            }
+            var count = await _context.StudentCourses
+                .Where(sc => sc.CourseId == courseId)
+                .CountAsync();
+            return count;
+        }
+
         // PUT: api/StudentCourses/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]

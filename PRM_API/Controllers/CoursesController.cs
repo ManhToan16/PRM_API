@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PRM_API.DTO;
 using PRM_API.Models;
 
 namespace PRM_API.Controllers
@@ -52,7 +52,6 @@ namespace PRM_API.Controllers
 
         // PUT: api/Courses/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutCourse(int id, Course course)
         {
@@ -81,6 +80,32 @@ namespace PRM_API.Controllers
 
             return NoContent();
         }
+
+        // PUT: api/Courses/5/des
+        [HttpPut("{id}/description")]
+        public async Task<IActionResult> UpdateCourseDescription(int id, [FromBody] CourseDescriptionDTO dto)
+        {
+            var course = await _context.Courses.FindAsync(id);
+            if (course == null)
+            {
+                return NotFound();
+            }
+            course.Name = dto.Name;
+            course.Description = dto.Description; // Cập nhật mô tả
+            _context.Entry(course).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return StatusCode(500, "Lỗi khi cập nhật ");
+            }
+
+            return NoContent(); // Trả về 204 nếu thành công
+        }
+
 
         // POST: api/Courses
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
